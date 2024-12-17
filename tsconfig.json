@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    // I don't need this really
+    "sourceMap": true,
+    "outDir": "./Dist",
+    "baseUrl": "./",
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCaseInSwitch": true,
+    "preserveConstEnums": true,
+    "allowUnreachableCode": false,
+    "alwaysStrict": true,
+    "verbatimModuleSyntax": true,
+    "downlevelIteration": true,
+    "lib": ["ES2020", "DOM"],
+
+    "paths": {
+      "@src/*": ["src/*"]
+    }
+  },
+  "include": ["stc/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}
