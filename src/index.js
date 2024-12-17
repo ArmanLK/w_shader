@@ -1,18 +1,52 @@
 import * as mat4 from "./gl-matrix/esm/mat4.js";
 
+window.addEventListener("beforeunload", saveFocusState);
+window.addEventListener("load", restoreFocusState);
+
+/** @type {HTMLTextAreaElement} */
+const vsTextArea = document.getElementById("vert-shader-source");
+/** @type {HTMLTextAreaElement} */
+const fsTextArea = document.getElementById("frag-shader-source");
+
+vsTextArea.addEventListener('keydown', tabKeyAddsTab)
+fsTextArea.addEventListener('keydown', tabKeyAddsTab)
+
 main();
 
-function main() {
-  /** type {HtmlCanvasElement | null} */
-  const canvas = document.querySelector("#gl-canvas");
-  const gl = canvas.getContext("webgl");
+/**
+ * @param {Event} e
+ */
+function tabKeyAddsTab(e) {
+  if (e.key === "Tab") {
+    e.preventDefault();
 
-  if (canvas == null) {
+    /** @type {HTMLTextAreaElement} */
+    const textArea = e.target;
+    let start = textArea.selectionStart;
+    let end = textArea.selectionEnd;
+    const val = textArea.value;
+
+    textArea.value =
+      val.slice(0, start) +
+      "\t" +
+      val.slice(start, end);
+
+    textArea.selectionStart = textArea.SelectionEnd = start + 1;
+  }
+}
+
+function main() {
+  /** @type {HTMLCanvasElement | null} */
+  const canvas = document.querySelector("#gl-canvas");
+
+  if (!canvas) {
     alert("what happend?");
     return;
   }
 
-  if (gl === null) {
+  const gl = canvas.getContext("webgl");
+
+  if (!gl) {
     alert(
       "Unable to initialize WebGL. Your browser or machine may not support it.",
     );
@@ -22,67 +56,162 @@ function main() {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  const vsSource = `
-    attribute vec4 aVertexPosition;
-    attribute vec4 aVertexColor;
+  let shaderProgram = initShaderProgram(gl);
 
-    uniform mat4 uModelViewMatrix;
-    uniform mat4 uProjectionMatrix;
+  if (shaderProgram) {
+    switchProgram(gl, shaderProgram);
+  }
 
-    varying lowp vec4 vColor;
+  document
+    .getElementById("compile-shaders-button")
+    .addEventListener("click", () => {
+      if (shaderProgram) {
+        cleanup(gl, shaderProgram);
+      }
 
-    void main() {
-      gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-      vColor = aVertexColor;
-    }
-`;
+      shaderProgram = initShaderProgram(gl);
 
-  const fsSource = `
-    varying lowp vec4 vColor;
-
-    void main() {
-      gl_FragColor = vColor;
-    }
-  `;
-
-  const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-
-  /** @type {import ('./types').ProgramInfo} */
-  const programInfo = {
-    program: shaderProgram,
-    attribLocations: {
-      vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
-      vertexColor: gl.getAttribLocation(shaderProgram, "aVertexColor"),
-    },
-    uniformLocations: {
-      projectionMatrix: gl.getUniformLocation(
-        shaderProgram,
-        "uProjectionMatrix",
-      ),
-      modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
-    },
-  };
-
-  const buffers = initBuffers(gl);
-  drawScene(gl, buffers, programInfo);
+      if (shaderProgram) {
+        switchProgram(gl, shaderProgram);
+      }
+    });
 }
 
 /**
  * @param {WebGLRenderingContext} gl
- * @param {string} vsSource
- * @param {string} fsSource
+ * @param {WebGLProgram} program
  */
-function initShaderProgram(gl, vsSource, fsSource) {
-  const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
-  const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+function cleanup(gl, program) {
+  const shaders = gl.getAttachedShaders(program);
+  for (const shader of shaders) {
+    if (shader) {
+      gl.detachShader(program, shader);
+      gl.deleteShader(shader);
+    }
+  }
+
+  gl.deleteProgram(program);
+}
+
+/**
+ * @param {WebGLRenderingContext} gl
+ * @param {WebGLProgram} program
+ */
+function switchProgram(gl, program) {
+  /** @type {import ('./types').ProgramInfo} */
+
+  const programInfo = {
+    program: program,
+    attribLocations: {
+      vertexPosition: gl.getAttribLocation(program, "aVertexPosition"),
+      vertexColor: gl.getAttribLocation(program, "aVertexColor"),
+    },
+    uniformLocations: {
+      projectionMatrix: gl.getUniformLocation(program, "uProjectionMatrix"),
+      modelViewMatrix: gl.getUniformLocation(program, "uModelViewMatrix"),
+    },
+  };
+
+  let last = 0;
+  const render = () => {
+    const now = 0.001 * performance.now();
+    const dt = now - last;
+    last = now;
+
+    if (dt >= 1 / 60) {
+      drawScene(gl, buffers, programInfo);
+    }
+    requestAnimationFrame(render);
+  };
+
+  const buffers = initBuffers(gl);
+
+  requestAnimationFrame(render);
+}
+/**
+ * @param {string} id
+ * @param {string} defaultVal
+ */
+function manageShaderCode(id, defaultVal) {
+  /** @type {HTMLTextAreaElement} */
+  const textArea = document.getElementById(id);
+  const storedVal = localStorage.getItem(id);
+
+  if (storedVal) {
+    textArea.value = storedVal;
+  } else {
+    textArea.value = defaultVal;
+    localStorage.setItem(id, defaultVal);
+  }
+
+  textArea.addEventListener("input", function () {
+    localStorage.setItem(id, this.value);
+  });
+}
+
+function saveFocusState() {
+  const focusedElem = document.activeElement;
+  if (focusedElem) {
+    localStorage.setItem("focusedElementId", focusedElem.id);
+  }
+}
+
+function restoreFocusState() {
+  const focusedElemId = localStorage.getItem("focusedElementId");
+  if (focusedElemId) {
+    const elem = document.getElementById(focusedElemId);
+    if (elem) {
+      elem.focus();
+    } else {
+    }
+    localStorage.removeItem("focusedElementId");
+  }
+}
+
+/**
+ * @param {WebGLRenderingContext} gl
+ */
+function initShaderProgram(gl) {
+  const defaultVsCode = `attribute vec4 aVertexPosition;
+attribute vec4 aVertexColor;
+
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+
+varying lowp vec4 vColor;
+
+void main() {
+  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+  vColor = aVertexColor;
+}
+`;
+
+  const defaultFsCode = `varying lowp vec4 vColor;
+
+void main() {
+  gl_FragColor = vColor;
+}`;
+
+  manageShaderCode("vert-shader-source", defaultVsCode);
+  manageShaderCode("frag-shader-source", defaultFsCode);
+
+  const vsCode = vsTextArea.value;
+  const fsCode = fsTextArea.value;
+
+  const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vsCode);
+  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fsCode);
 
   const shaderProgram = gl.createProgram();
-  gl.attachShader(shaderProgram, vertexShader);
-  gl.attachShader(shaderProgram, fragmentShader);
-  gl.linkProgram(shaderProgram);
+  if (vertexShader && fragmentShader) {
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+  } else {
+    console.error("compilation failed!");
+  }
 
   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-    alert(
+    console.error(
       `Unable to initialize the shader program: ${gl.getProgramInfoLog(
         shaderProgram,
       )}`,
@@ -98,7 +227,7 @@ function initShaderProgram(gl, vsSource, fsSource) {
  * @param {GLenum} type
  * @param {string} source
  */
-function loadShader(gl, type, source) {
+function compileShader(gl, type, source) {
   const shader = gl.createShader(type);
 
   gl.shaderSource(shader, source);
@@ -109,11 +238,23 @@ function loadShader(gl, type, source) {
     console.error(
       `An error occurred compiling the shaders: ${gl.getShaderInfoLog(shader)}`,
     );
+    const tMsg = type === gl.VERTEX_SHADER ? "vertex" : "fragment";
+    const logMsg = gl.getShaderInfoLog(shader);
+    logShaderError(`Error in ${tMsg} shader: ${logMsg}`);
     gl.deleteShader(shader);
     return null;
   }
 
   return shader;
+}
+
+/**
+ * @param {string} msg
+ */
+function logShaderError(msg) {
+  const shaderConsole = document.getElementById("glsl-consule");
+  shaderConsole.innerHTML += msg + "<br>";
+  shaderConsole.scrollTop = shaderConsole.scrollHeight;
 }
 
 /**

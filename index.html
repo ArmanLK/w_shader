@@ -7,6 +7,21 @@
   </head>
   <body>
     <script type="module" src="src/index.js"></script>
-    <canvas id="gl-canvas" width="800" height="600"></canvas>
+    <canvas id="gl-canvas" width="480" height="360"></canvas>
+    <br />
+    <button id="compile-shaders-button">Compile</button>
+    <h1>vertex shader</h1>
+    <textarea id="vert-shader-source" rows="10" cols="50"> </textarea>
+    <h1>fragment shader</h1>
+    <textarea id="frag-shader-source" rows="10" cols="50"> </textarea>
+    <div
+      id="glsl-consule"
+      style="
+        height: 200px;
+        overflow-y: auto;
+        border: 1px solod #000;
+        padding: 10px;
+      "
+    ></div>
   </body>
 </html>

@@ -12,5 +12,5 @@ export type ProgramInfo = {
 
 export type Buffs = {
   position: WebGLBuffer;
-  color: WebGlBuffers;
+  color: WebGLBuffer;
 };
