@@ -13,19 +13,27 @@
     <br />
     <button id="compile-shaders-button">Compile</button>
     <div class="tab-bar">
-      <button class="tab-link active" data-target="frag-shader-source">
-        fragment
-      </button>
-      <button class="tab-link" data-target="vert-shader-source">vertex</button>
+      <button class="tab-link active" data-target="frag-tab">fragment</button>
+      <button class="tab-link" data-target="vert-tab">vertex</button>
     </div>
     <div class="tab-container">
-      <div class="tab-content" id="vert-shader-source">
-        <h1>vertex shader</h1>
-        <textarea class="glsl-code-area" cols="100" rows="20"> </textarea>
+      <div class="tab-content active" id="frag-tab">
+        <textarea
+          id="frag-shader-source"
+          class="glsl-code-area"
+          cols="100"
+          rows="20"
+        >
+        </textarea>
       </div>
-      <div class="tab-content active" id="frag-shader-source">
-        <h1>fragment shader</h1>
-        <textarea class="glsl-code-area" cols="100" rows="20"> </textarea>
+      <div class="tab-content" id="vert-tab">
+        <textarea
+          id="vert-shader-source"
+          class="glsl-code-area"
+          cols="100"
+          rows="20"
+        >
+        </textarea>
       </div>
     </div>
     <div class="glsl-consule" id="glsl-consule"></div>

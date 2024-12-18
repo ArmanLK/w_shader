@@ -127,23 +127,22 @@ function run(gl, program) {
 }
 
 /**
- * @param {string} id
+ * @param {HTMLTextAreaElement} tArea
  * @param {string} defaultVal
  */
-function manageShaderCode(id, defaultVal) {
+function manageShaderCode(tArea, defaultVal) {
   /** @type {HTMLTextAreaElement} */
-  const textArea = document.getElementById(id);
-  const storedVal = localStorage.getItem(id);
+  const storedVal = localStorage.getItem(tArea.id);
 
   if (storedVal) {
-    textArea.value = storedVal;
+    tArea.value = storedVal;
   } else {
-    textArea.value = defaultVal;
-    localStorage.setItem(id, defaultVal);
+    tArea.value = defaultVal;
+    localStorage.setItem(tArea.id, defaultVal);
   }
 
-  textArea.addEventListener("input", function () {
-    localStorage.setItem(id, this.value);
+  tArea.addEventListener("input", function () {
+    localStorage.setItem(tArea.id, this.value);
   });
 }
 
@@ -192,8 +191,8 @@ void main() {
   gl_FragColor = vColor;
 }`;
 
-  manageShaderCode("vert-shader-source", defaultVsCode);
-  manageShaderCode("frag-shader-source", defaultFsCode);
+  manageShaderCode(vsTextArea, defaultVsCode);
+  manageShaderCode(fsTextArea, defaultFsCode);
 
   const vsCode = vsTextArea.value;
   const fsCode = fsTextArea.value;
