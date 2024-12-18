@@ -1,27 +1,33 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="widht=device-width, initial-scale=1.0" />
     <title>W shader</title>
-    <style></style>
+    <link rel="stylesheet" href="styles.css" />
   </head>
+
   <body>
     <script type="module" src="src/index.js"></script>
     <canvas id="gl-canvas" width="480" height="360"></canvas>
     <br />
     <button id="compile-shaders-button">Compile</button>
-    <h1>vertex shader</h1>
-    <textarea id="vert-shader-source" rows="10" cols="50"> </textarea>
-    <h1>fragment shader</h1>
-    <textarea id="frag-shader-source" rows="10" cols="50"> </textarea>
-    <div
-      id="glsl-consule"
-      style="
-        height: 200px;
-        overflow-y: auto;
-        border: 1px solod #000;
-        padding: 10px;
-      "
-    ></div>
+    <div class="tab-bar">
+      <button class="tab-link active" data-target="frag-shader-source">
+        fragment
+      </button>
+      <button class="tab-link" data-target="vert-shader-source">vertex</button>
+    </div>
+    <div class="tab-container">
+      <div class="tab-content" id="vert-shader-source">
+        <h1>vertex shader</h1>
+        <textarea class="glsl-code-area" cols="100" rows="20"> </textarea>
+      </div>
+      <div class="tab-content active" id="frag-shader-source">
+        <h1>fragment shader</h1>
+        <textarea class="glsl-code-area" cols="100" rows="20"> </textarea>
+      </div>
+    </div>
+    <div class="glsl-consule" id="glsl-consule"></div>
   </body>
 </html>

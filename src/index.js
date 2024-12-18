@@ -8,30 +8,36 @@ const vsTextArea = document.getElementById("vert-shader-source");
 /** @type {HTMLTextAreaElement} */
 const fsTextArea = document.getElementById("frag-shader-source");
 
-vsTextArea.addEventListener('keydown', tabKeyAddsTab)
-fsTextArea.addEventListener('keydown', tabKeyAddsTab)
+vsTextArea.addEventListener("keydown", handleTabKey);
+fsTextArea.addEventListener("keydown", handleTabKey);
+
+document.querySelectorAll(".tab-link").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    document
+      .querySelectorAll(".tab-link")
+      .forEach((btn) => btn.classList.remove("active"));
+
+    event.target.classList.add("active");
+
+    let target = event.target.getAttribute("data-target");
+
+    document
+      .querySelectorAll(".tab-content")
+      .forEach((elem) => elem.classList.remove("active"));
+
+    const elem = document.getElementById(target);
+    elem.classList.add("active");
+  });
+});
 
 main();
 
 /**
  * @param {Event} e
  */
-function tabKeyAddsTab(e) {
+function handleTabKey(e) {
   if (e.key === "Tab") {
     e.preventDefault();
-
-    /** @type {HTMLTextAreaElement} */
-    const textArea = e.target;
-    let start = textArea.selectionStart;
-    let end = textArea.selectionEnd;
-    const val = textArea.value;
-
-    textArea.value =
-      val.slice(0, start) +
-      "\t" +
-      val.slice(start, end);
-
-    textArea.selectionStart = textArea.SelectionEnd = start + 1;
   }
 }
 
@@ -56,24 +62,15 @@ function main() {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  let shaderProgram = initShaderProgram(gl);
-
-  if (shaderProgram) {
-    switchProgram(gl, shaderProgram);
-  }
+  let shaderProgram = gl.createProgram();
+  programChangeShader(gl, shaderProgram);
+  run(gl, shaderProgram);
 
   document
     .getElementById("compile-shaders-button")
     .addEventListener("click", () => {
-      if (shaderProgram) {
-        cleanup(gl, shaderProgram);
-      }
-
-      shaderProgram = initShaderProgram(gl);
-
-      if (shaderProgram) {
-        switchProgram(gl, shaderProgram);
-      }
+      programChangeShader(gl, shaderProgram);
+      run(gl, shaderProgram);
     });
 }
 
@@ -89,19 +86,19 @@ function cleanup(gl, program) {
       gl.deleteShader(shader);
     }
   }
-
-  gl.deleteProgram(program);
 }
 
 /**
  * @param {WebGLRenderingContext} gl
  * @param {WebGLProgram} program
  */
-function switchProgram(gl, program) {
+function run(gl, program) {
   /** @type {import ('./types').ProgramInfo} */
 
+  gl.useProgram(null);
+  gl.useProgram(program);
+
   const programInfo = {
-    program: program,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(program, "aVertexPosition"),
       vertexColor: gl.getAttribLocation(program, "aVertexColor"),
@@ -128,6 +125,7 @@ function switchProgram(gl, program) {
 
   requestAnimationFrame(render);
 }
+
 /**
  * @param {string} id
  * @param {string} defaultVal
@@ -171,7 +169,9 @@ function restoreFocusState() {
 /**
  * @param {WebGLRenderingContext} gl
  */
-function initShaderProgram(gl) {
+function programChangeShader(gl, program) {
+  cleanup(gl, program);
+
   const defaultVsCode = `attribute vec4 aVertexPosition;
 attribute vec4 aVertexColor;
 
@@ -201,25 +201,21 @@ void main() {
   const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vsCode);
   const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fsCode);
 
-  const shaderProgram = gl.createProgram();
   if (vertexShader && fragmentShader) {
-    gl.attachShader(shaderProgram, vertexShader);
-    gl.attachShader(shaderProgram, fragmentShader);
-    gl.linkProgram(shaderProgram);
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
   } else {
     console.error("compilation failed!");
   }
 
-  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     console.error(
       `Unable to initialize the shader program: ${gl.getProgramInfoLog(
-        shaderProgram,
+        program,
       )}`,
     );
-    return null;
   }
-
-  return shaderProgram;
 }
 
 /**
@@ -340,8 +336,6 @@ export function drawScene(gl, buffers, programInfo) {
 
   setPositionAttribute(gl, buffers, programInfo);
   setColorAttribute(gl, buffers, programInfo);
-
-  gl.useProgram(programInfo.program);
 
   gl.uniformMatrix4fv(
     programInfo.uniformLocations.projectionMatrix,
