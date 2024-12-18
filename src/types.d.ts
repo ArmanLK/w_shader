@@ -8,6 +8,7 @@ export type ProgramInfo = {
     projectionMatrix: GLint;
     modelViewMatrix: GLint;
   };
+  uTime: Number;
 };
 
 export type Buffs = {

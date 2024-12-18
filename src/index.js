@@ -93,11 +93,10 @@ function cleanup(gl, program) {
  * @param {WebGLProgram} program
  */
 function run(gl, program) {
-  /** @type {import ('./types').ProgramInfo} */
-
   gl.useProgram(null);
   gl.useProgram(program);
 
+  /** @type {import ('./types').ProgramInfo} */
   const programInfo = {
     attribLocations: {
       vertexPosition: gl.getAttribLocation(program, "aVertexPosition"),
@@ -106,17 +105,18 @@ function run(gl, program) {
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(program, "uProjectionMatrix"),
       modelViewMatrix: gl.getUniformLocation(program, "uModelViewMatrix"),
+      uTime: gl.getUniformLocation(program, "uTime"),
     },
   };
 
   let last = 0;
-  const render = () => {
+  function render() {
     const now = 0.001 * performance.now();
     const dt = now - last;
     last = now;
 
     if (dt >= 1 / 60) {
-      drawScene(gl, buffers, programInfo);
+      drawScene(gl, buffers, programInfo, now);
     }
     requestAnimationFrame(render);
   };
@@ -159,7 +159,6 @@ function restoreFocusState() {
     const elem = document.getElementById(focusedElemId);
     if (elem) {
       elem.focus();
-    } else {
     }
     localStorage.removeItem("focusedElementId");
   }
@@ -312,10 +311,12 @@ function initColorBuff(gl) {
  * @param {WebGLRenderingContext} gl
  * @param {import ('./types').Buffs} buffers
  * @param {import ('./types').ProgramInfo} programInfo
+ * @param {Number} time 
  */
-export function drawScene(gl, buffers, programInfo) {
+export function drawScene(gl, buffers, programInfo, time) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
+
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
 
@@ -346,6 +347,8 @@ export function drawScene(gl, buffers, programInfo) {
     false,
     modelViewMatrix,
   );
+
+  gl.uniform1f(programInfo.uTime, time);
 
   {
     const offset = 0;
