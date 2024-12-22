@@ -1,12 +1,15 @@
-import * as mat4 from "./gl-matrix/esm/mat4.js";
+import { mat4 } from "gl-matrix";
+import type { Buffs, ProgramInfo } from "./types";
 
 window.addEventListener("beforeunload", saveFocusState);
 window.addEventListener("load", restoreFocusState);
 
-/** @type {HTMLTextAreaElement} */
-const vsTextArea = document.getElementById("vert-shader-source");
-/** @type {HTMLTextAreaElement} */
-const fsTextArea = document.getElementById("frag-shader-source");
+const vsTextArea = document.getElementById(
+  "vert-shader-source",
+) as HTMLTextAreaElement;
+const fsTextArea = document.getElementById(
+  "frag-shader-source",
+) as HTMLTextAreaElement;
 
 vsTextArea.addEventListener("keydown", handleTabKey);
 fsTextArea.addEventListener("keydown", handleTabKey);
@@ -17,33 +20,36 @@ document.querySelectorAll(".tab-link").forEach((button) => {
       .querySelectorAll(".tab-link")
       .forEach((btn) => btn.classList.remove("active"));
 
-    event.target.classList.add("active");
+    const t = event.target as HTMLTextAreaElement;
+    t.classList.add("active");
 
-    let target = event.target.getAttribute("data-target");
+    let target = t.getAttribute("data-target");
+    if (!target) {
+      return;
+    }
 
     document
       .querySelectorAll(".tab-content")
       .forEach((elem) => elem.classList.remove("active"));
 
     const elem = document.getElementById(target);
+    if (!elem) {
+      return;
+    }
     elem.classList.add("active");
   });
 });
 
 main();
 
-/**
- * @param {Event} e
- */
-function handleTabKey(e) {
+function handleTabKey(e: KeyboardEvent) {
   if (e.key === "Tab") {
     e.preventDefault();
   }
 }
 
 function main() {
-  /** @type {HTMLCanvasElement | null} */
-  const canvas = document.querySelector("#gl-canvas");
+  const canvas = document.querySelector("#gl-canvas") as HTMLCanvasElement;
 
   if (!canvas) {
     alert("what happend?");
@@ -63,24 +69,27 @@ function main() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   let shaderProgram = gl.createProgram();
+  if (!shaderProgram) {
+    console.error("Create Program failed");
+    return;
+  }
   programChangeShader(gl, shaderProgram);
   run(gl, shaderProgram);
 
-  document
-    .getElementById("compile-shaders-button")
-    .addEventListener("click", () => {
-      programChangeShader(gl, shaderProgram);
-      run(gl, shaderProgram);
-    });
+  const btn = document.getElementById("compile-shaders-button");
+  if (!btn) {
+    throw new Error("button element id is wrong!");
+  }
+
+  btn.addEventListener("click", () => {
+    programChangeShader(gl, shaderProgram);
+    run(gl, shaderProgram);
+  });
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- * @param {WebGLProgram} program
- */
-function cleanup(gl, program) {
+function cleanup(gl: WebGLRenderingContext, program: WebGLProgram) {
   const shaders = gl.getAttachedShaders(program);
-  for (const shader of shaders) {
+  for (const shader of shaders || []) {
     if (shader) {
       gl.detachShader(program, shader);
       gl.deleteShader(shader);
@@ -88,24 +97,36 @@ function cleanup(gl, program) {
   }
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- * @param {WebGLProgram} program
- */
-function run(gl, program) {
+function run(gl: WebGLRenderingContext, program: WebGLProgram) {
   gl.useProgram(null);
   gl.useProgram(program);
 
-  /** @type {import ('./types').ProgramInfo} */
-  const programInfo = {
+  const pMLoc = gl.getUniformLocation(program, "uProjectionMatrix");
+  const mVMLoc = gl.getUniformLocation(program, "uModelViewMatrix");
+  const uTime = gl.getUniformLocation(program, "uTime");
+
+  if (!pMLoc) {
+    console.error("projectionMatrix is null!");
+    return;
+  }
+  if (!mVMLoc) {
+    console.error("modelViewMatrix is null");
+    return;
+  }
+  if (!uTime) {
+    console.error("uTime is null");
+    return;
+  }
+
+  const programInfo: ProgramInfo = {
     attribLocations: {
       vertexPosition: gl.getAttribLocation(program, "aVertexPosition"),
       vertexColor: gl.getAttribLocation(program, "aVertexColor"),
     },
     uniformLocations: {
-      projectionMatrix: gl.getUniformLocation(program, "uProjectionMatrix"),
-      modelViewMatrix: gl.getUniformLocation(program, "uModelViewMatrix"),
-      uTime: gl.getUniformLocation(program, "uTime"),
+      projectionMatrix: pMLoc,
+      modelViewMatrix: mVMLoc,
+      uTime: uTime,
     },
   };
 
@@ -115,23 +136,23 @@ function run(gl, program) {
     const dt = now - last;
     last = now;
 
+    if (!buffers) {
+      requestAnimationFrame(render);
+      return;
+    }
+
     if (dt >= 1 / 60) {
       drawScene(gl, buffers, programInfo, now);
     }
     requestAnimationFrame(render);
-  };
+  }
 
   const buffers = initBuffers(gl);
 
   requestAnimationFrame(render);
 }
 
-/**
- * @param {HTMLTextAreaElement} tArea
- * @param {string} defaultVal
- */
-function manageShaderCode(tArea, defaultVal) {
-  /** @type {HTMLTextAreaElement} */
+function manageShaderCode(tArea: HTMLTextAreaElement, defaultVal: string) {
   const storedVal = localStorage.getItem(tArea.id);
 
   if (storedVal) {
@@ -164,10 +185,7 @@ function restoreFocusState() {
   }
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- */
-function programChangeShader(gl, program) {
+function programChangeShader(gl: WebGLRenderingContext, program: WebGLProgram) {
   cleanup(gl, program);
 
   const defaultVsCode = `attribute vec4 aVertexPosition;
@@ -216,13 +234,15 @@ void main() {
   }
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- * @param {GLenum} type
- * @param {string} source
- */
-function compileShader(gl, type, source) {
+function compileShader(
+  gl: WebGLRenderingContext,
+  type: GLenum,
+  source: string,
+) {
   const shader = gl.createShader(type);
+  if (!shader) {
+    return null;
+  }
 
   gl.shaderSource(shader, source);
 
@@ -242,30 +262,28 @@ function compileShader(gl, type, source) {
   return shader;
 }
 
-/**
- * @param {string} msg
- */
-function logShaderError(msg) {
+function logShaderError(msg: string) {
   const shaderConsole = document.getElementById("glsl-consule");
+  if (!shaderConsole) {
+    throw new Error("shader console id not found!");
+  }
+
   shaderConsole.innerHTML += msg + "<br>";
   shaderConsole.scrollTop = shaderConsole.scrollHeight;
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- * @returns {import('./types').Buffs}
- */
-export function initBuffers(gl) {
+function initBuffers(gl: WebGLRenderingContext) {
   const posBuff = initPosBuff(gl);
   const colorBuff = initColorBuff(gl);
 
-  return { position: posBuff, color: colorBuff };
+  if (posBuff && colorBuff) {
+    return { position: posBuff, color: colorBuff };
+  } else {
+    return null;
+  }
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- */
-function initPosBuff(gl) {
+function initPosBuff(gl: WebGLRenderingContext) {
   const posBuff = gl.createBuffer();
 
   gl.bindBuffer(gl.ARRAY_BUFFER, posBuff);
@@ -277,10 +295,7 @@ function initPosBuff(gl) {
   return posBuff;
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- */
-function initColorBuff(gl) {
+function initColorBuff(gl: WebGLRenderingContext) {
   const colors = [
     1.0,
     1.0,
@@ -307,13 +322,12 @@ function initColorBuff(gl) {
   return colorBuff;
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- * @param {import ('./types').Buffs} buffers
- * @param {import ('./types').ProgramInfo} programInfo
- * @param {Number} time 
- */
-export function drawScene(gl, buffers, programInfo, time) {
+function drawScene(
+  gl: WebGLRenderingContext,
+  buffers: Buffs,
+  programInfo: ProgramInfo,
+  time: number,
+) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
 
@@ -323,7 +337,7 @@ export function drawScene(gl, buffers, programInfo, time) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   const fow = (45 * Math.PI) / 180; // in radians
-  const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+  const aspect = gl.canvas.width / gl.canvas.height;
   const zNear = 0.1;
   const zFar = 100.0;
   const projectionMatrix = mat4.create();
@@ -347,27 +361,27 @@ export function drawScene(gl, buffers, programInfo, time) {
     false,
     modelViewMatrix,
   );
-
-  gl.uniform1f(programInfo.uTime, time);
+  gl.uniform1f(programInfo.uniformLocations.uTime, time);
 
   {
     const offset = 0;
     const vertexCount = 4;
+
     gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
   }
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- * @param {import ("./types").Buffs} buffers
- * @param {import ("./types").ProgramInfo} programInfo
- */
-function setPositionAttribute(gl, buffers, programInfo) {
+function setPositionAttribute(
+  gl: WebGLRenderingContext,
+  buffers: Buffs,
+  programInfo: ProgramInfo,
+) {
   const numComponents = 2;
   const type = gl.FLOAT;
   const normalize = false;
   const stride = 0;
   const offset = 0;
+
   gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
   gl.vertexAttribPointer(
     programInfo.attribLocations.vertexPosition,
@@ -380,17 +394,17 @@ function setPositionAttribute(gl, buffers, programInfo) {
   gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
 }
 
-/**
- * @param {WebGLRenderingContext} gl
- * @param {import ("./types").Buffs} buffers
- * @param {import ("./types").ProgramInfo} programInfo
- */
-function setColorAttribute(gl, buffers, programInfo) {
+function setColorAttribute(
+  gl: WebGLRenderingContext,
+  buffers: Buffs,
+  programInfo: ProgramInfo,
+) {
   const numComponents = 4;
   const type = gl.FLOAT;
   const normalize = false;
   const stride = 0;
   const offset = 0;
+
   gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
   gl.vertexAttribPointer(
     programInfo.attribLocations.vertexColor,

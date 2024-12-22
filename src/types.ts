@@ -1,14 +1,14 @@
 export type ProgramInfo = {
-  program: WebGLProgram | null;
+  //program: WebGLProgram | null;
   attribLocations: {
     vertexPosition: GLint;
     vertexColor: GLint;
   };
   uniformLocations: {
-    projectionMatrix: GLint;
-    modelViewMatrix: GLint;
+    projectionMatrix: WebGLUniformLocation;
+    modelViewMatrix: WebGLUniformLocation;
+    uTime: WebGLUniformLocation;
   };
-  uTime: Number;
 };
 
 export type Buffs = {
