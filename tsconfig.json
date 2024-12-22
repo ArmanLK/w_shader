@@ -19,7 +19,7 @@
     "noImplicitOverride": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCaseInSwitch": true,
+    "noFallthroughCasesInSwitch": true,
     "preserveConstEnums": true,
     "allowUnreachableCode": false,
     "alwaysStrict": true,
@@ -31,6 +31,6 @@
       "@src/*": ["src/*"]
     }
   },
-  "include": ["stc/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }
