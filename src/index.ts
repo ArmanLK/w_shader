@@ -1,17 +1,30 @@
 import { mat4 } from "gl-matrix";
-import type { Buffs, ProgramInfo } from "./types";
 
 window.addEventListener("beforeunload", saveFocusState);
 window.addEventListener("load", restoreFocusState);
 
-const vsTextArea = document.getElementById(
-  "vert-shader-source",
-) as HTMLTextAreaElement;
 const fsTextArea = document.getElementById(
   "frag-shader-source",
 ) as HTMLTextAreaElement;
 
-vsTextArea.addEventListener("keydown", handleTabKey);
+const vertices = new Float32Array([-1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0])
+
+const vsCode = `precision mediump float;
+
+attribute vec2 aVertexPosition;
+
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+uniform float uTime;
+
+varying lowp vec4 vColor;
+
+void main() {
+  gl_Position = vec4(aVertexPosition, 0.0, 1.0);
+  vColor = vec4(1,1,1,1);
+}
+`;
+
 fsTextArea.addEventListener("keydown", handleTabKey);
 
 document.querySelectorAll(".tab-link").forEach((button) => {
@@ -98,56 +111,35 @@ function cleanup(gl: WebGLRenderingContext, program: WebGLProgram) {
 }
 
 function run(gl: WebGLRenderingContext, program: WebGLProgram) {
-  gl.useProgram(null);
   gl.useProgram(program);
 
-  const pMLoc = gl.getUniformLocation(program, "uProjectionMatrix");
-  const mVMLoc = gl.getUniformLocation(program, "uModelViewMatrix");
+  const vertexBuffer = gl.createBuffer()
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+  const aVertexPosition = gl.getAttribLocation(program, "aVertexPosition")
+  gl.enableVertexAttribArray(aVertexPosition)
+  gl.vertexAttribPointer(aVertexPosition, 2, gl.FLOAT, false, 0, 0)
+
   const uTime = gl.getUniformLocation(program, "uTime");
 
-  if (!pMLoc) {
-    console.error("projectionMatrix is null!");
-    return;
-  }
-  if (!mVMLoc) {
-    console.error("modelViewMatrix is null");
-    return;
-  }
   if (!uTime) {
     console.error("uTime is null");
-    return;
+    //return;
   }
-
-  const programInfo: ProgramInfo = {
-    attribLocations: {
-      vertexPosition: gl.getAttribLocation(program, "aVertexPosition"),
-      vertexColor: gl.getAttribLocation(program, "aVertexColor"),
-    },
-    uniformLocations: {
-      projectionMatrix: pMLoc,
-      modelViewMatrix: mVMLoc,
-      uTime: uTime,
-    },
-  };
 
   let last = 0;
   function render() {
-    const now = 0.001 * performance.now();
+    const now = (performance.now() + performance.timeOrigin);
     const dt = now - last;
-    last = now;
 
-    if (!buffers) {
-      requestAnimationFrame(render);
-      return;
-    }
-
-    if (dt >= 1 / 60) {
-      drawScene(gl, buffers, programInfo, now);
+    if (dt >= (1000 / 60)) {
+      drawScene(gl, uTime, now);
+      last = now;
     }
     requestAnimationFrame(render);
   }
-
-  const buffers = initBuffers(gl);
 
   requestAnimationFrame(render);
 }
@@ -188,30 +180,17 @@ function restoreFocusState() {
 function programChangeShader(gl: WebGLRenderingContext, program: WebGLProgram) {
   cleanup(gl, program);
 
-  const defaultVsCode = `attribute vec4 aVertexPosition;
-attribute vec4 aVertexColor;
+  const defaultFsCode = `precision mediump float;
 
-uniform mat4 uModelViewMatrix;
-uniform mat4 uProjectionMatrix;
-
+uniform float uTime;
 varying lowp vec4 vColor;
-
-void main() {
-  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-  vColor = aVertexColor;
-}
-`;
-
-  const defaultFsCode = `varying lowp vec4 vColor;
 
 void main() {
   gl_FragColor = vColor;
 }`;
 
-  manageShaderCode(vsTextArea, defaultVsCode);
   manageShaderCode(fsTextArea, defaultFsCode);
 
-  const vsCode = vsTextArea.value;
   const fsCode = fsTextArea.value;
 
   const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vsCode);
@@ -221,6 +200,7 @@ void main() {
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     gl.linkProgram(program);
+    console.error(gl.getError())
   } else {
     console.error("compilation failed!");
   }
@@ -272,61 +252,10 @@ function logShaderError(msg: string) {
   shaderConsole.scrollTop = shaderConsole.scrollHeight;
 }
 
-function initBuffers(gl: WebGLRenderingContext) {
-  const posBuff = initPosBuff(gl);
-  const colorBuff = initColorBuff(gl);
-
-  if (posBuff && colorBuff) {
-    return { position: posBuff, color: colorBuff };
-  } else {
-    return null;
-  }
-}
-
-function initPosBuff(gl: WebGLRenderingContext) {
-  const posBuff = gl.createBuffer();
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, posBuff);
-
-  const positions = [1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, -1.0];
-
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-  return posBuff;
-}
-
-function initColorBuff(gl: WebGLRenderingContext) {
-  const colors = [
-    1.0,
-    1.0,
-    1.0,
-    1.0, // white
-    1.0,
-    0.0,
-    0.0,
-    1.0, // red
-    0.0,
-    1.0,
-    0.0,
-    1.0, // green
-    0.0,
-    0.0,
-    1.0,
-    1.0, // blue
-  ];
-
-  const colorBuff = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuff);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
-  return colorBuff;
-}
-
 function drawScene(
   gl: WebGLRenderingContext,
-  buffers: Buffs,
-  programInfo: ProgramInfo,
-  time: number,
+  uTime: WebGLUniformLocation,
+  time: GLfloat,
 ) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
@@ -348,71 +277,12 @@ function drawScene(
 
   mat4.translate(modelViewMatrix, modelViewMatrix, [-0.0, 0.0, -6.0]);
 
-  setPositionAttribute(gl, buffers, programInfo);
-  setColorAttribute(gl, buffers, programInfo);
-
-  gl.uniformMatrix4fv(
-    programInfo.uniformLocations.projectionMatrix,
-    false,
-    projectionMatrix,
-  );
-  gl.uniformMatrix4fv(
-    programInfo.uniformLocations.modelViewMatrix,
-    false,
-    modelViewMatrix,
-  );
-  gl.uniform1f(programInfo.uniformLocations.uTime, time);
+  gl.uniform1f(uTime, time);
 
   {
     const offset = 0;
-    const vertexCount = 4;
+    const vertexCount = vertices.length / 2;
 
     gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
   }
-}
-
-function setPositionAttribute(
-  gl: WebGLRenderingContext,
-  buffers: Buffs,
-  programInfo: ProgramInfo,
-) {
-  const numComponents = 2;
-  const type = gl.FLOAT;
-  const normalize = false;
-  const stride = 0;
-  const offset = 0;
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
-  gl.vertexAttribPointer(
-    programInfo.attribLocations.vertexPosition,
-    numComponents,
-    type,
-    normalize,
-    stride,
-    offset,
-  );
-  gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
-}
-
-function setColorAttribute(
-  gl: WebGLRenderingContext,
-  buffers: Buffs,
-  programInfo: ProgramInfo,
-) {
-  const numComponents = 4;
-  const type = gl.FLOAT;
-  const normalize = false;
-  const stride = 0;
-  const offset = 0;
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
-  gl.vertexAttribPointer(
-    programInfo.attribLocations.vertexColor,
-    numComponents,
-    type,
-    normalize,
-    stride,
-    offset,
-  );
-  gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor);
 }
