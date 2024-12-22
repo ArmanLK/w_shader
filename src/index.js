@@ -3,29 +3,36 @@ import * as mat4 from "./gl-matrix/esm/mat4.js";
 window.addEventListener("beforeunload", saveFocusState);
 window.addEventListener("load", restoreFocusState);
 
-/** @type {HTMLTextAreaElement} */
+/** @type {HTMLTextAreaElement | null} */
 const vsTextArea = document.getElementById("vert-shader-source");
-/** @type {HTMLTextAreaElement} */
+/** @type {HTMLTextAreaElement | null} */
 const fsTextArea = document.getElementById("frag-shader-source");
+
+if (!vsTextArea || !fsTextArea) { throw new Error("wrong id for shader textArea") }
 
 vsTextArea.addEventListener("keydown", handleTabKey);
 fsTextArea.addEventListener("keydown", handleTabKey);
 
 document.querySelectorAll(".tab-link").forEach((button) => {
   button.addEventListener("click", (event) => {
+    /** @type {HTMLTextAreaElement | null} */
+    const t = event.target
+    if (!t) { return }
+
     document
       .querySelectorAll(".tab-link")
       .forEach((btn) => btn.classList.remove("active"));
 
-    event.target.classList.add("active");
+    t.classList.add("active");
 
-    let target = event.target.getAttribute("data-target");
+    let target = t.getAttribute("data-target");
 
     document
       .querySelectorAll(".tab-content")
       .forEach((elem) => elem.classList.remove("active"));
 
     const elem = document.getElementById(target);
+    if (!elem) { return }
     elem.classList.add("active");
   });
 });
@@ -33,7 +40,7 @@ document.querySelectorAll(".tab-link").forEach((button) => {
 main();
 
 /**
- * @param {Event} e
+ * @param {KeyboardEvent} e
  */
 function handleTabKey(e) {
   if (e.key === "Tab") {
@@ -63,6 +70,10 @@ function main() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   let shaderProgram = gl.createProgram();
+  if (!shaderProgram) {
+    console.error("WebGL program initialization failed!")
+    return
+  }
   programChangeShader(gl, shaderProgram);
   run(gl, shaderProgram);
 
@@ -80,7 +91,7 @@ function main() {
  */
 function cleanup(gl, program) {
   const shaders = gl.getAttachedShaders(program);
-  for (const shader of shaders) {
+  for (const shader of (shaders || [])) {
     if (shader) {
       gl.detachShader(program, shader);
       gl.deleteShader(shader);
@@ -131,7 +142,6 @@ function run(gl, program) {
  * @param {string} defaultVal
  */
 function manageShaderCode(tArea, defaultVal) {
-  /** @type {HTMLTextAreaElement} */
   const storedVal = localStorage.getItem(tArea.id);
 
   if (storedVal) {
@@ -166,6 +176,7 @@ function restoreFocusState() {
 
 /**
  * @param {WebGLRenderingContext} gl
+ * @param {WebGLProgram} program
  */
 function programChangeShader(gl, program) {
   cleanup(gl, program);
@@ -223,6 +234,10 @@ void main() {
  */
 function compileShader(gl, type, source) {
   const shader = gl.createShader(type);
+  if (!shader) {
+    console.error("could not initialize shader")
+    return
+  }
 
   gl.shaderSource(shader, source);
 
@@ -246,7 +261,8 @@ function compileShader(gl, type, source) {
  * @param {string} msg
  */
 function logShaderError(msg) {
-  const shaderConsole = document.getElementById("glsl-consule");
+  const shaderConsole = document.getElementById("glsl-console");
+  if (!shaderConsole) { throw new Error("wrong id for glsl console") }
   shaderConsole.innerHTML += msg + "<br>";
   shaderConsole.scrollTop = shaderConsole.scrollHeight;
 }
@@ -255,7 +271,7 @@ function logShaderError(msg) {
  * @param {WebGLRenderingContext} gl
  * @returns {import('./types').Buffs}
  */
-export function initBuffers(gl) {
+function initBuffers(gl) {
   const posBuff = initPosBuff(gl);
   const colorBuff = initColorBuff(gl);
 
